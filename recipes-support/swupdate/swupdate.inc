@@ -10,11 +10,6 @@ inherit cml1 update-rc.d systemd pkgconfig
 SRC_URI = "git://github.com/sbabic/swupdate.git;protocol=https \
      file://defconfig \
      file://swupdate \
-     file://swupdate.service \
-     file://swupdate-usb.rules \
-     file://swupdate-usb@.service \
-     file://swupdate-progress.service \
-     file://systemd-tmpfiles-swupdate.conf \
      "
 
 INSANE_SKIP_${PN} = "ldflags"
@@ -131,7 +126,11 @@ do_compile() {
 
 do_install () {
 
-  oe_runmake install
+  if ${@bb.utils.contains('DISTRO_FEATURES','systemd','true','false',d)}; then
+    oe_runmake install SYSTEMD_SYSTEM_UNITDIR=${systemd_system_unitdir}
+  else
+	oe_runmake install
+  fi
 
   install -m 0755 -d ${D}/www
   if [ -d ${S}/web-app ];then
@@ -143,22 +142,10 @@ do_install () {
   install -d ${D}${sysconfdir}/init.d
   install -m 755 ${WORKDIR}/swupdate ${D}${sysconfdir}/init.d
 
-  install -d ${D}${systemd_unitdir}/system
-  install -m 644 ${WORKDIR}/swupdate.service ${D}${systemd_unitdir}/system
-  install -m 644 ${WORKDIR}/swupdate-usb@.service ${D}${systemd_unitdir}/system
-  install -m 644 ${WORKDIR}/swupdate-progress.service ${D}${systemd_unitdir}/system
-
-
-  if ${@bb.utils.contains('DISTRO_FEATURES','systemd','true','false',d)}; then
-    install -d ${D}${libdir}/tmpfiles.d
-    install -m 0644 ${WORKDIR}/systemd-tmpfiles-swupdate.conf ${D}${libdir}/tmpfiles.d/swupdate.conf
-    install -d ${D}${sysconfdir}/udev/rules.d
-    install -m 0644 ${WORKDIR}/swupdate-usb.rules ${D}${sysconfdir}/udev/rules.d/
-  fi
 }
 
 INITSCRIPT_NAME = "swupdate"
 INITSCRIPT_PARAMS = "defaults 70"
 
 SYSTEMD_SERVICE_${PN} = "swupdate.service"
-SYSTEMD_SERVICE_${PN} += "swupdate-usb@.service swupdate-progress.service"
+SYSTEMD_SERVICE_${PN} += "swupdate-usb@.service swupdate-progress.service swupdate.socket"
